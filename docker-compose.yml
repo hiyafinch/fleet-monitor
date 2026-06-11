@@ -1,0 +1,38 @@
+version: '3.9'
+
+services:
+  device-sim:
+    build: .
+    command: node src/device-sim/index.js
+    env_file: .env
+    environment:
+      - VEHICLE_IDS=vehicle-1,vehicle-2,vehicle-3
+      - PUBLISH_INTERVAL_MS=2000
+    restart: unless-stopped
+
+  gateway:
+    build: .
+    command: node src/gateway/index.js
+    env_file: .env
+    restart: unless-stopped
+
+  alert-engine:
+    build: .
+    command: node src/alert-engine/index.js
+    env_file: .env
+    volumes:
+      - data:/app/data
+    restart: unless-stopped
+
+  ws-bridge:
+    build: .
+    command: node src/ws-bridge/index.js
+    env_file: .env
+    volumes:
+      - data:/app/data
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  data:
