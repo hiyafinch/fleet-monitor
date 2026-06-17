@@ -140,10 +140,3 @@ main().catch((err) => {
   console.error('[alert-engine] fatal:', err);
   process.exit(1);
 });
-  10000);
-}
-
-main().catch((err) => {
-  console.error('[alert-engine] fatal:', err);
-  process.exit(1);
-});
