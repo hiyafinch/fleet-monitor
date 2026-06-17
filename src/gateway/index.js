@@ -31,7 +31,7 @@ const router = new MessageRouter(ROUTE_MAP);
 const enricher = new ContentEnricher(VEHICLE_REGISTRY, THRESHOLD_REGISTRY);
 
 async function main() {
-  const client = await createBusClient('gateway-1', { clean: false });
+  const client = await createBusClient(`gateway-${Date.now()}`, { clean: true });
 
   client.subscribe('fleet/+/raw', { qos: 1 }, (err) => {
     if (err) {

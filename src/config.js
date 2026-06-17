@@ -13,6 +13,9 @@ export const config = {
   },
   authToken: process.env.AUTH_TOKEN ?? 'changeme',
   sqlitePath: process.env.SQLITE_PATH ?? './data/events.db',
+  wsBridge: {
+    port: parseInt(process.env.WS_BRIDGE_PORT ?? '3000', 10),
+  },
   alertEngine: {
     sustainedReadings: parseInt(process.env.SUSTAINED_READINGS ?? '3', 10),
     hysteresisMargin: parseFloat(process.env.HYSTERESIS_MARGIN ?? '5'),

@@ -1,12 +1,12 @@
 # Sprint 2 Progress Tracker
 
-Last updated: 2026-06-10
+Last updated: 2026-06-17
 
 ---
 
 ## Current status
 
-**Week 2 of 4.** Demo day: June 29. Full pipeline confirmed working end to end on test.mosquitto.org. lowIsBad bug fixed. 32/32 tests passing.
+**Week 3 of 4.** Demo day: June 29. Week 2 complete. 71/71 tests passing. Starting ws-bridge and dashboard.
 
 ---
 
@@ -43,11 +43,13 @@ Last updated: 2026-06-10
 
 ## What's next
 
-### Week 2 (June 10-16)
-- [ ] Add `reducer.test.js` — test XState machine state folds end to end
-- [ ] Add `integration.test.js` — full pipeline in-process test
-- [ ] Confirm Observer fan-out: AuditLogger and WsBridgeObserver both fire
-- [ ] Verify events being written to SQLite event store
+### Week 2 (June 10-17)
+- [x] Add `reducer.test.js` — 26 tests covering all XState transitions, sustain counter, lowIsBad, context tracking
+- [x] Add `integration.test.js` — 13 tests: full in-process pipeline, Observer fan-out confirmed, event store writes, hash chain, point-in-time replay
+- [x] Observer fan-out confirmed: AuditLogger and WsBridgeObserver both fire from same dispatch
+- [x] Events verified writing to SQLite event store (covered by integration tests)
+- [x] Bug fixed: duplicate `main()` call in `src/alert-engine/index.js`
+- [x] 71/71 tests passing. Committed: `fa7589a`
 - [ ] Optional: Ollama LLM summarizer (only if ahead of schedule)
 
 ### Week 3 (June 17-23)
@@ -122,8 +124,8 @@ Last updated: 2026-06-10
 | Item | Value |
 |---|---|
 | Remote | https://github.com/hiyafinch/fleet-monitor |
-| Local | `C:/Users/hiyaf/Desktop/Web II/fleet-monitor` |
+| Local | `C:/Users/hiyaf/OneDrive/Documents/School/Web II/fleet-monitor` |
 | Sprint tag | `sprint-2-final` (apply when complete) |
 | Current broker | `mqtt://test.mosquitto.org:1883` (dev) |
 | Target broker | `mqtt://mqtt.uvucs.org:1883` (blocked, see open issues) |
-| Latest commit | `8260d89` — lowIsBad fix, 32/32 tests |
+| Latest commit | `fa7589a` — Week 2 complete, 71/71 tests |

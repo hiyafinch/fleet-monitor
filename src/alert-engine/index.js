@@ -74,18 +74,45 @@ function getOrCreateActor(vehicleId, metric) {
 }
 
 async function main() {
-  const client = await createBusClient('alert-engine-1', { clean: false });
+  const client = await createBusClient(`alert-engine-${Date.now()}`, { clean: true });
 
   // Subscribe to LWT / device status for OFFLINE transitions
   client.subscribe('fleet/+/status', { qos: 1 });
   client.subscribe('fleet/+/+/clean', { qos: 1 });
+  // ACK / RESOLVE commands published by ws-bridge on behalf of the dashboard
+  client.subscribe('fleet/+/+/command', { qos: 1 });
 
-  console.log('[alert-engine] subscribed to fleet/+/+/clean and fleet/+/status');
+  console.log('[alert-engine] subscribed to fleet/+/+/clean, fleet/+/status, fleet/+/+/command');
 
   client.on('message', (topic, buffer) => {
     let msg;
     try { msg = JSON.parse(buffer.toString()); }
     catch { return; }
+
+    // Handle ACK / RESOLVE commands from the dashboard via ws-bridge
+    if (topic.match(/^fleet\/[^/]+\/[^/]+\/command$/)) {
+      const parts = topic.split('/');
+      const vehicleId = parts[1];
+      const metric    = parts[2];
+      const key       = `${vehicleId}:${metric}`;
+      const actor     = actors.get(key);
+      if (!actor) return;
+
+      if (msg.type === 'ACK') {
+        actor.send({ type: 'ACK', operator: msg.operator });
+        dispatcher.dispatch('AlertAcknowledged', {
+          vehicleId, metric, aggregateId: key,
+          operator: msg.operator, ts: new Date().toISOString(),
+        });
+      } else if (msg.type === 'RESOLVE') {
+        actor.send({ type: 'RESOLVE' });
+        dispatcher.dispatch('AlertResolved', {
+          vehicleId, metric, aggregateId: key,
+          operator: msg.operator ?? 'operator', ts: new Date().toISOString(),
+        });
+      }
+      return;
+    }
 
     // Handle LWT / device status
     if (topic.match(/^fleet\/[^/]+\/status$/)) {

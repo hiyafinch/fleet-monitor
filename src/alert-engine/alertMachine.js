@@ -159,6 +159,11 @@ export function createAlertMachine(channelConfig) {
               }),
             },
           ],
+          // Operator forces resolution before readings naturally clear
+          RESOLVE: {
+            target: 'RESOLVED',
+            actions: assign({ consecutiveCount: 0 }),
+          },
           HEARTBEAT_TIMEOUT: {
             guard: ({ context }) => isStale(context.lastSeen, stalenessMs),
             target: 'OFFLINE',

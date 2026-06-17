@@ -1,0 +1,36 @@
+{
+  "title": "Fleet Monitor",
+  "nav": {
+    "live": "Live",
+    "history": "History"
+  },
+  "states": {
+    "NORMAL": "Normal",
+    "WARNING": "Warning",
+    "CRITICAL": "Critical",
+    "ACKNOWLEDGED": "Acknowledged",
+    "RESOLVED": "Resolved",
+    "OFFLINE": "Offline"
+  },
+  "metrics": {
+    "coolantTemp": "Coolant Temp",
+    "oilPressure": "Oil Pressure",
+    "rpm": "RPM",
+    "fuelLevel": "Fuel Level"
+  },
+  "actions": {
+    "ack": "Acknowledge",
+    "resolve": "Resolve"
+  },
+  "labels": {
+    "vehicle": "Vehicle",
+    "lastValue": "Last Reading",
+    "lastSeen": "Last Seen",
+    "noAlerts": "No active alerts",
+    "connecting": "Connecting...",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "timeTravelLabel": "Point-in-time view",
+    "timeTravelLive": "Live"
+  }
+}
