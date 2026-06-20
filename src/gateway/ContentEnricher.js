@@ -8,25 +8,13 @@
 // so downstream components need no further lookups.
 
 export class ContentEnricher {
-  /**
-   * @param {object} vehicleRegistry  - Map of vehicleId to { name, ... }
-   * @param {object} thresholdRegistry - Map of metric name to { warnThreshold, critThreshold, calibrationOffset }
-   * @param {number} rollingWindow     - Number of recent readings to average (default 5)
-   */
   constructor(vehicleRegistry = {}, thresholdRegistry = {}, rollingWindow = 5) {
     this.vehicleRegistry = vehicleRegistry;
     this.thresholdRegistry = thresholdRegistry;
     this.rollingWindow = rollingWindow;
-    // history[vehicleId:metric] = number[]
     this.history = new Map();
   }
 
-  /**
-   * Enrich a canonical message with reference data.
-   *
-   * @param {object} message - Canonical message from MessageTranslator.
-   * @returns {object} Enriched message with added fields.
-   */
   enrich(message) {
     const { vehicleId, metric, value } = message;
 
@@ -39,7 +27,6 @@ export class ContentEnricher {
 
     const calibratedValue = value + thresholds.calibrationOffset;
 
-    // Update rolling history
     const key = `${vehicleId}:${metric}`;
     if (!this.history.has(key)) this.history.set(key, []);
     const buf = this.history.get(key);

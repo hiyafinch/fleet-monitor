@@ -4,10 +4,6 @@
 // WebSocket clients so the dashboard sees transitions in real time.
 
 export class WsBridgeObserver {
-  /**
-   * @param {import('./EventDispatcher.js').EventDispatcher} dispatcher
-   * @param {Function} broadcast - Function(message: string) that sends to all ws clients.
-   */
   constructor(dispatcher, broadcast) {
     this.broadcast = broadcast;
     dispatcher.subscribe('*', this.onEvent.bind(this));

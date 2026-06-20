@@ -43,26 +43,10 @@ function initSchema(db) {
   `);
 }
 
-/**
- * Append a single domain event to the store.
- * Computes the hash chain: hash = sha256(prev_hash + canonical_payload).
- *
- * @param {object} event
- * @param {string} event.aggregateType
- * @param {string} event.aggregateId
- * @param {string} event.eventType
- * @param {object} event.payload
- * @param {string} [event.occurredAt]
- * @param {string} [event.actor]
- * @param {string} [event.correlationId]
- * @param {string} [event.causationId]
- * @returns {number} The new event's id.
- */
 export function appendEvent(event) {
   const database = getDb();
 
   const append = database.transaction((e) => {
-    // Get the last hash for this aggregate to chain from
     const last = database
       .prepare('SELECT hash FROM events WHERE aggregate_type = ? AND aggregate_id = ? ORDER BY id DESC LIMIT 1')
       .get(e.aggregateType, e.aggregateId);
@@ -97,9 +81,6 @@ export function appendEvent(event) {
   return append(event);
 }
 
-/**
- * Retrieve all events for an aggregate, optionally up to a given ISO timestamp.
- */
 export function getEvents(aggregateType, aggregateId, { upToTime } = {}) {
   const database = getDb();
   if (upToTime) {
@@ -112,9 +93,6 @@ export function getEvents(aggregateType, aggregateId, { upToTime } = {}) {
     .all(aggregateType, aggregateId);
 }
 
-/**
- * Verify the hash chain for an aggregate. Returns true if intact.
- */
 export function verifyChain(aggregateType, aggregateId) {
   const events = getEvents(aggregateType, aggregateId);
   let prevHash = '';
@@ -127,10 +105,6 @@ export function verifyChain(aggregateType, aggregateId) {
   return true;
 }
 
-/**
- * Get all events across all aggregates, optionally up to a time. Used by the
- * time-travel reconstruction endpoint.
- */
 export function getAllEvents({ upToTime } = {}) {
   const database = getDb();
   if (upToTime) {

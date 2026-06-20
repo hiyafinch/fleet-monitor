@@ -5,9 +5,6 @@
 import { appendEvent } from './eventStore.js';
 
 export class AuditLogger {
-  /**
-   * @param {import('./EventDispatcher.js').EventDispatcher} dispatcher
-   */
   constructor(dispatcher) {
     dispatcher.subscribe('*', this.onEvent.bind(this));
   }

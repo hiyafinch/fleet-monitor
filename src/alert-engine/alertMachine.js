@@ -159,7 +159,6 @@ export function createAlertMachine(channelConfig) {
               }),
             },
           ],
-          // Operator forces resolution before readings naturally clear
           RESOLVE: {
             target: 'RESOLVED',
             actions: assign({ consecutiveCount: 0 }),

@@ -1,12 +1,12 @@
 # Sprint 2 Progress Tracker
 
-Last updated: 2026-06-17
+Last updated: 2026-06-20
 
 ---
 
 ## Current status
 
-**Week 3 of 4.** Demo day: June 29. Week 2 complete. 71/71 tests passing. Starting ws-bridge and dashboard.
+**Week 3 of 4 — complete.** Demo day: June 29. 71/71 tests passing. Dashboard live and verified.
 
 ---
 
@@ -28,46 +28,51 @@ Last updated: 2026-06-17
 - [x] `npm install` successful (better-sqlite3 upgraded to v12 for Node 24 compat)
 - [x] MQTT proof of life confirmed on `test.mosquitto.org` — 3 vehicles streaming
 
-### Week 2 (June 10)
+### Week 2 (June 10-17)
 - [x] Full pipeline end to end: device-sim + gateway + alert-engine live together
 - [x] Clean topics confirmed: `fleet/{vehicleId}/{metric}/clean`
 - [x] Alert topics confirmed: `alerts/{vehicleId}/{metric}`
 - [x] Bug fixed: `lowIsBad` guards for oilPressure and fuelLevel
-  - oilPressure and fuelLevel were falsely firing CRITICAL at normal values
-  - Root cause: `value >= critThreshold` fires when value=45, critThreshold=15
-  - Fix: `lowIsBad=true` flips all comparisons for those metrics
-- [x] 32/32 tests passing (added 7 new lowIsBad direction tests)
-- [x] Committed and pushed: `8260d89`
+- [x] RESOLVE event and command topic handling added to alert-engine
+- [x] 71/71 tests passing (reducer.test.js 26 tests, integration.test.js 13 tests added)
+- [x] Observer fan-out confirmed: AuditLogger and WsBridgeObserver both fire from same dispatch
+- [x] Events verified writing to SQLite event store
+- [x] Committed: `fa7589a`
+
+### Week 3 (June 17-23)
+- [x] `src/ws-bridge/index.js` — Koa HTTP + WebSocket server
+  - Bridges MQTT to browser over ws://
+  - GET /api/fleet-state (with optional upToTime for time-travel)
+  - GET /api/events/range (slider bounds)
+  - POST /api/command (ACK/RESOLVE, Bearer auth)
+  - Serves static dashboard from /dashboard/
+- [x] `dashboard/index.html` — SPA shell, WebSocket client, reconnect logic
+- [x] `dashboard/components/fleet-map.js` — Lit Element vehicle card grid
+- [x] `dashboard/components/alert-panel.js` — Lit Element active alerts table with ACK/RESOLVE buttons
+- [x] `dashboard/components/time-travel-slider.js` — Lit Element range slider, fires time-travel events
+- [x] `dashboard/i18n/en.json` — label strings
+- [x] `scripts/inject-spike.js` — CLI tool to inject CRITICAL / NORMAL readings for demo
+- [x] Bug fixed: stale persistent MQTT sessions on test.mosquitto.org blocked message delivery
+  - Root cause: `clean: false` + stable clientIds caused broker to hold stale session state
+  - Fix: `clean: true` + `Date.now()` suffix on clientIds for dev
+- [x] Dashboard smoke-tested: 3 vehicles, all NORMAL, values updating live every 2s
+- [x] Time-travel slider: disabled until events accumulate, then enables with earliest/latest bounds
+- [x] ACK/RESOLVE flow: inject-spike.js script ready for demo trigger
+- [x] Committed: `8b8439d`
 
 ---
 
 ## What's next
 
-### Week 2 (June 10-17)
-- [x] Add `reducer.test.js` — 26 tests covering all XState transitions, sustain counter, lowIsBad, context tracking
-- [x] Add `integration.test.js` — 13 tests: full in-process pipeline, Observer fan-out confirmed, event store writes, hash chain, point-in-time replay
-- [x] Observer fan-out confirmed: AuditLogger and WsBridgeObserver both fire from same dispatch
-- [x] Events verified writing to SQLite event store (covered by integration tests)
-- [x] Bug fixed: duplicate `main()` call in `src/alert-engine/index.js`
-- [x] 71/71 tests passing. Committed: `fa7589a`
-- [ ] Optional: Ollama LLM summarizer (only if ahead of schedule)
-
-### Week 3 (June 17-23)
-- [ ] `ws-bridge` — Koa + secure WebSocket, bridges MQTT to browser
-- [ ] Lit Element dashboard — live readings, alert state panels
-- [ ] Time-travel slider — drags to any past timestamp, reconstructs fleet state
-- [ ] ACK / RESOLVE controls on dashboard
-- [ ] Browser reconnect handling (catch-up from event store on reconnect)
-
 ### Week 4 (June 24-29)
-- [ ] Deploy to public HTTPS URL (target: June 25 — buffer for TLS issues)
+- [ ] Deploy to public HTTPS URL via Caddy (target: June 25 — buffer for TLS/wss issues)
 - [ ] Write README (Pattern Index, state chart table, EIP citations, Perfect Framework, run instructions)
 - [ ] Self-grep: confirm every pattern name in README exists as a real class in code
 - [ ] Record 15-min demo video, upload to YouTube (Unlisted)
-- [ ] Commit `docs/presentation.md` (presentation summary)
 - [ ] Commit `sprints/sprint-2-reflection.md` (individual reflection, due 24h after demo)
 - [ ] Tag commit: `sprint-2-final`
 - [ ] Submit tag URL to Canvas
+- [ ] Optional: Ollama LLM summarizer (only if ahead of schedule)
 
 ---
 
@@ -76,19 +81,15 @@ Last updated: 2026-06-17
 ### MQTT broker (mqtt.uvucs.org) — BLOCKED
 - **Status:** Times out on port 1883. Likely firewalled to UVU campus/VPN.
 - **Workaround:** Using `test.mosquitto.org` for all development. Works fine.
-- **What's needed:** Either UVU VPN credentials, or ask Prof. Hunter directly for broker credentials/connection instructions. No credentials found in course GitHub or assignment brief.
-- **Fallback:** The rubric says "MQTT or WebSockets" — if broker stays inaccessible, ws-bridge can satisfy the pub-sub requirement over WebSockets only. Full marks still achievable.
-- **Action:** Ask professor on Canvas or in Google Meet. Try UVU VPN if available.
+- **Before demo:** Switch MQTT_URL back to mqtt.uvucs.org if accessible, or confirm test.mosquitto.org is acceptable.
+
+### Clean session clientIds
+- **Current:** `clean: true` + `Date.now()` suffix (dev workaround for test.mosquitto.org session issue)
+- **Before demo:** Revert to stable clientIds (`alert-engine-1`, `gateway-1`, `ws-bridge-1`) once deployed on a server that doesn't share broker sessions with development machines.
 
 ### Sprint is listed as a Team project
 - **Status:** Ethan is doing it solo.
 - **Action:** Confirm with Prof. Hunter that solo submission is OK.
-
-### CC Artifact 2 (Subagent Recipe)
-- **Due:** June 8 (already past). Check Canvas to see if this was submitted or needs to catch up.
-
-### Week 5 reflection (w05.md)
-- **Due:** June 8 (already past). Check Canvas, may need to submit late.
 
 ---
 
@@ -97,10 +98,8 @@ Last updated: 2026-06-17
 - Pattern names in the Pattern Index are load-bearing. Never rename `MessageRouter`, `ContentEnricher`, `MessageTranslator`, `EventDispatcher`, etc.
 - Auto-grader matches pattern names to actual code. Always self-grep before submitting.
 - Deploy by June 25, not June 29, to leave buffer for TLS/wss issues.
-- Render free tier spins down — wake backend before demoing.
-- Git Bash: type `cd` manually, do not paste multi-line commands.
 - All generated files need an AI-citation comment at line 1.
-- Use bash (not Write tool) for files >~6KB — Write tool pads with null bytes and truncates content.
+- When injecting spikes for demo: `node scripts/inject-spike.js` (CRITICAL) then `node scripts/inject-spike.js clear` (back to NORMAL).
 
 ---
 
@@ -128,4 +127,4 @@ Last updated: 2026-06-17
 | Sprint tag | `sprint-2-final` (apply when complete) |
 | Current broker | `mqtt://test.mosquitto.org:1883` (dev) |
 | Target broker | `mqtt://mqtt.uvucs.org:1883` (blocked, see open issues) |
-| Latest commit | `fa7589a` — Week 2 complete, 71/71 tests |
+| Latest commit | `8b8439d` — Week 3 complete, dashboard live |
