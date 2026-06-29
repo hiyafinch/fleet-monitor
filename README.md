@@ -200,7 +200,7 @@ Table: `events`
 | Scalability | Stateless gateway and alert-engine workers; `docker-compose --scale gateway=2` works without code changes; state is event-sourced from SQLite on restart |
 | Persistence | Append-only `events` table; full state is reconstructable by replay |
 | Audit trail | Event store + SHA-256 hash chain + time-travel reconstruction via pure reducer |
-| Deployment | Public HTTPS via ngrok tunnel; Caddyfile committed for VPS deployment |
+| Deployment | Public HTTPS via ngrok tunnel (`https://excavator-hatless-boozy.ngrok-free.dev`); `Caddyfile` committed for VPS deployment |
 
 ---
 
