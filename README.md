@@ -5,7 +5,8 @@ CS 3660 Web Design 2 — Sprint 2
 Ethan Kidd | UVU | Summer 2026  
 Demo day: June 29, 2026
 
-**Live demo:** https://excavator-hatless-boozy.ngrok-free.dev
+**Live demo:** https://excavator-hatless-boozy.ngrok-free.dev  
+**Demo video:** https://youtu.be/vKa7E2ZIUAo
 
 A distributed fleet telemetry monitoring and alerting system. Simulated vehicles publish sensor readings over MQTT. A gateway pipeline translates, routes, and enriches each reading. An alert engine runs an XState v5 state machine per monitored channel. Every domain event is appended to an immutable, hash-chained SQLite event store. A live browser dashboard shows fleet state in real time with a time-travel slider for point-in-time historical reconstruction.
 
