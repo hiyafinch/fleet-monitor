@@ -12,7 +12,7 @@ const MODE   = process.argv[2] === 'clear' ? 'clear' : 'spike';
 const VALUE  = MODE === 'spike' ? 115 : 82;   // 115 = CRITICAL, 82 = well below hysteresis
 const LABEL  = MODE === 'spike' ? 'CRITICAL spike' : 'NORMAL clear';
 const COUNT  = 5;
-const DELAY  = 2100; // slightly longer than the alert-engine's publish interval
+const DELAY  = 400;  // fast: all 5 arrive before device-sim can interleave a normal reading
 
 const client = await createBusClient(`inject-spike-${Date.now()}`, { clean: true });
 
