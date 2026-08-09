@@ -135,8 +135,16 @@ async function main() {
     }
 
     // Handle clean readings: fleet/{vehicleId}/{metric}/clean
-    const { vehicleId, metric, value, ts } = msg;
+    const { vehicleId, metric, value, ts, rollingAvg } = msg;
     if (!vehicleId || !metric) return;
+
+    // PATTERN: Strategy (GoF) — evaluate the reading using the channel's strategy.
+    // createStrategy() (Factory Method) already built the right instance at startup.
+    // evaluate() returns { isWarning, isCritical, reason } without any alert-engine
+    // logic needing to know which algorithm is in use.
+    const channelConfig = CHANNEL_CONFIGS[metric] ?? CHANNEL_CONFIGS.coolantTemp;
+    const strategy = strategies[metric] ?? strategies.coolantTemp;
+    const evaluation = strategy.evaluate({ value, rollingAvg: rollingAvg ?? value }, channelConfig);
 
     const actor = getOrCreateActor(vehicleId, metric);
     actor.send({ type: 'READING', value, ts });
@@ -144,6 +152,11 @@ async function main() {
     dispatcher.dispatch('ReadingRecorded', {
       vehicleId, metric, value, ts,
       aggregateId: `${vehicleId}:${metric}`,
+      // Strategy result attached so observers (AuditLogger, WsBridgeObserver) can
+      // log the evaluation reason without re-implementing threshold logic.
+      isWarning: evaluation.isWarning,
+      isCritical: evaluation.isCritical,
+      evaluationReason: evaluation.reason,
     });
 
     // Publish current alert state
