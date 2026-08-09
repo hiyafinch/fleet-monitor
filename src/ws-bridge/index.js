@@ -8,10 +8,6 @@
 //   4. GET  /api/fleet-state?upToTime=<iso>  — point-in-time reconstruction
 //   5. POST /api/command  { type, vehicleId, metric, operator }  — ACK / RESOLVE
 //      Requires Authorization: Bearer <token> header
-//
-// The browser speaks wss:// to this bridge. The bridge speaks plain MQTT to
-// the broker. This is required because browsers served over HTTPS cannot open
-// plain ws:// connections to an external broker.
 
 import Koa from 'koa';
 import Router from 'koa-router';
@@ -27,7 +23,6 @@ import { config } from '../config.js';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const DASHBOARD_DIR = join(__dirname, '../../dashboard');
 
-// ---- MIME types for static file serving ----
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js':   'application/javascript; charset=utf-8',
@@ -36,9 +31,6 @@ const MIME = {
   '.ico':  'image/x-icon',
 };
 
-// ---- Fleet state reconstruction (pure projection over event store) ----
-// Folds all events up to an optional timestamp into a current-state snapshot.
-// Only AlertStateChanged and ReadingRecorded events affect the projection.
 function reconstructFleetState(upToTime) {
   const events = getAllEvents(upToTime ? { upToTime } : {});
   const fleet = {};
@@ -61,91 +53,82 @@ function reconstructFleetState(upToTime) {
   return fleet;
 }
 
-// ---- Body reader (avoids needing koa-bodyparser) ----
 async function readBody(ctx) {
   return new Promise((resolve) => {
     let raw = '';
     ctx.req.on('data', chunk => raw += chunk);
-    ctx.req.on('end', () => {
-      try { resolve(JSON.parse(raw)); } catch { resolve({}); }
-    });
+    ctx.req.on('end', () => { try { resolve(JSON.parse(raw)); } catch { resolve({}); } });
     ctx.req.on('error', () => resolve({}));
   });
 }
 
-// ---- Auth middleware for mutation endpoints ----
 function requireAuth(ctx) {
   const header = ctx.headers['authorization'] ?? '';
   const token  = header.startsWith('Bearer ') ? header.slice(7) : '';
   return token === config.authToken;
 }
 
-async function main() {
-  // ---- MQTT client ----
-  const mqttClient = await createBusClient(`ws-bridge-${Date.now()}`, { clean: true });
-  mqttClient.subscribe(['alerts/#', 'fleet/#'], { qos: 1 });
-  console.log('[ws-bridge] MQTT subscribed to alerts/# and fleet/#');
+// ---- WebSocket client set (module-level so MQTT handler can access it) ----
+const clients = new Set();
 
-  // ---- WebSocket clients ----
-  const clients = new Set();
-
-  function broadcast(obj) {
-    const msg = JSON.stringify(obj);
-    for (const ws of clients) {
-      if (ws.readyState === 1 /* OPEN */) ws.send(msg);
-    }
+function broadcast(obj) {
+  const msg = JSON.stringify(obj);
+  for (const ws of clients) {
+    if (ws.readyState === 1) ws.send(msg);
   }
+}
 
-  // Forward every MQTT message to connected browsers
-  mqttClient.on('message', (topic, buffer) => {
-    let payload;
-    try { payload = JSON.parse(buffer.toString()); } catch { return; }
-    broadcast({ type: 'mqtt', topic, payload, ts: new Date().toISOString() });
-  });
+// ---- MQTT connection (non-fatal — HTTP server starts regardless) ----
+let mqttClient = null;
 
+async function connectMqtt(attempt = 1) {
+  try {
+    mqttClient = await createBusClient(`ws-bridge-${Date.now()}`, { clean: true });
+    mqttClient.subscribe(['alerts/#', 'fleet/#'], { qos: 1 });
+    console.log('[ws-bridge] MQTT connected, subscribed to alerts/# and fleet/#');
+
+    mqttClient.on('message', (topic, buffer) => {
+      let payload;
+      try { payload = JSON.parse(buffer.toString()); } catch { return; }
+      broadcast({ type: 'mqtt', topic, payload, ts: new Date().toISOString() });
+    });
+
+    mqttClient.on('error', (err) => {
+      console.error('[ws-bridge] MQTT error:', err.message);
+    });
+  } catch (err) {
+    const delay = Math.min(30000, attempt * 5000);
+    console.error(`[ws-bridge] MQTT connection failed (attempt ${attempt}): ${err.message}. Retrying in ${delay / 1000}s`);
+    setTimeout(() => connectMqtt(attempt + 1), delay);
+  }
+}
+
+async function main() {
   // ---- Koa app ----
   const app    = new Koa();
   const router = new Router();
 
-  // GET /api/fleet-state — reconstruct fleet at an optional point in time
   router.get('/api/fleet-state', (ctx) => {
-    const upToTime = ctx.query.upToTime ?? null;
-    ctx.body = reconstructFleetState(upToTime);
+    ctx.body = reconstructFleetState(ctx.query.upToTime ?? null);
   });
 
-  // GET /api/events/range — time range of stored events (for slider bounds)
   router.get('/api/events/range', (ctx) => {
     const all = getAllEvents();
-    if (all.length === 0) {
-      ctx.body = { earliest: null, latest: null };
-    } else {
-      ctx.body = {
-        earliest: all[0].occurred_at,
-        latest:   all[all.length - 1].occurred_at,
-      };
-    }
+    ctx.body = all.length === 0
+      ? { earliest: null, latest: null }
+      : { earliest: all[0].occurred_at, latest: all[all.length - 1].occurred_at };
   });
 
-  // POST /api/command — ACK or RESOLVE an alert channel
+  router.get('/health', (ctx) => {
+    ctx.body = { status: 'ok', mqtt: mqttClient?.connected ?? false };
+  });
+
   router.post('/api/command', async (ctx) => {
-    if (!requireAuth(ctx)) {
-      ctx.status = 401;
-      ctx.body   = { error: 'Unauthorized' };
-      return;
-    }
+    if (!requireAuth(ctx)) { ctx.status = 401; ctx.body = { error: 'Unauthorized' }; return; }
     const { type, vehicleId, metric, operator = 'operator' } = await readBody(ctx);
-    if (!type || !vehicleId || !metric) {
-      ctx.status = 400;
-      ctx.body   = { error: 'type, vehicleId, and metric are required' };
-      return;
-    }
-    if (type !== 'ACK' && type !== 'RESOLVE') {
-      ctx.status = 400;
-      ctx.body   = { error: 'type must be ACK or RESOLVE' };
-      return;
-    }
-    // Publish command to MQTT. The alert-engine subscribes and forwards to
-    // the correct XState actor.
+    if (!type || !vehicleId || !metric) { ctx.status = 400; ctx.body = { error: 'type, vehicleId, and metric are required' }; return; }
+    if (type !== 'ACK' && type !== 'RESOLVE') { ctx.status = 400; ctx.body = { error: 'type must be ACK or RESOLVE' }; return; }
+    if (!mqttClient?.connected) { ctx.status = 503; ctx.body = { error: 'MQTT not connected' }; return; }
     mqttClient.publish(
       `fleet/${vehicleId}/${metric}/command`,
       JSON.stringify({ type, vehicleId, metric, operator, ts: new Date().toISOString() }),
@@ -154,7 +137,6 @@ async function main() {
     ctx.body = { ok: true };
   });
 
-  // Static file serving for the dashboard SPA
   router.get('/dashboard/(.*)', async (ctx) => {
     const rel  = ctx.params[0] || 'index.html';
     const file = join(DASHBOARD_DIR, rel);
@@ -163,7 +145,6 @@ async function main() {
     ctx.body = createReadStream(file);
   });
 
-  // Root redirects to dashboard
   router.get('/', (ctx) => { ctx.redirect('/dashboard/'); });
 
   app.use(router.routes()).use(router.allowedMethods());
@@ -175,22 +156,18 @@ async function main() {
   wss.on('connection', (ws) => {
     clients.add(ws);
     console.log(`[ws-bridge] client connected (total: ${clients.size})`);
-
-    // Send current fleet state immediately so the client doesn't start blank
-    const currentState = reconstructFleetState();
-    ws.send(JSON.stringify({ type: 'fleet-state', payload: currentState }));
-
-    ws.on('close', () => {
-      clients.delete(ws);
-      console.log(`[ws-bridge] client disconnected (total: ${clients.size})`);
-    });
+    ws.send(JSON.stringify({ type: 'fleet-state', payload: reconstructFleetState() }));
+    ws.on('close', () => { clients.delete(ws); console.log(`[ws-bridge] client disconnected (total: ${clients.size})`); });
     ws.on('error', (err) => console.error('[ws-bridge] ws error:', err.message));
   });
 
   httpServer.listen(config.wsBridge.port, () => {
-    console.log(`[ws-bridge] listening on http://localhost:${config.wsBridge.port}`);
+    console.log(`[ws-bridge] listening on port ${config.wsBridge.port}`);
     console.log(`[ws-bridge] dashboard at http://localhost:${config.wsBridge.port}/dashboard/`);
   });
+
+  // Connect to MQTT in background — server stays up even if broker is unreachable
+  connectMqtt();
 }
 
 main().catch((err) => {
